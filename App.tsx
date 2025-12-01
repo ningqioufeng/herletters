@@ -661,7 +661,7 @@ const LetterPaper = ({
           boxShadow: '20px 24px 45px rgba(0,0,0,0.25), 0 10px 20px rgba(0,0,0,0.15)', 
         }}
       >
-        <div className="absolute inset-0 opacity-10 bg-[url('/assets/cream-paper.png')] pointer-events-none mix-blend-multiply"></div>
+        <div className="absolute inset-0 opacity-10 bg-[url('/cream-paper.png')] pointer-events-none mix-blend-multiply"></div>
 
         <div className="w-full h-full p-8 sm:p-12 relative z-10">
           <textarea
@@ -1280,7 +1280,7 @@ export default function App() {
           {shadowEnabled && (
              <div className="absolute -inset-40 z-[5000] pointer-events-none no-export" 
                   style={{
-                      backgroundImage: 'url(./assets/lightshadow1.png)',
+                      backgroundImage: 'url(/lightshadow1.png)',
                       backgroundSize: 'auto',
                       backgroundPosition: 'right',
                       opacity: 1,
