@@ -1281,7 +1281,7 @@ export default function App() {
              <div className="absolute -inset-40 z-[5000] pointer-events-none no-export" 
                   style={{
                       backgroundImage: 'url(/lightshadow1.png)',
-                      backgroundSize: 'auto',
+                      backgroundSize: 'cover',
                       backgroundPosition: 'right',
                       opacity: 1,
                       mixBlendMode: 'multiply'
