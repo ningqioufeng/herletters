@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BoardImage, PaperState, Position, ToolType, Size, StickerItem } from './types';
 // 导入@zumer/snapdom
 import { snapdom } from '@zumer/snapdom';
@@ -129,47 +129,22 @@ const useDraggable = (
   const [position, setPosition] = useState(initialPosition);
   const [isDragging, setIsDragging] = useState(false);
   const offset = useRef<Position>({ x: 0, y: 0 });
-  const positionRef = useRef(position);
-  
-  // 使用useRef缓存position状态
-  useEffect(() => {
-    positionRef.current = position;
-  }, [position]);
 
   // Update internal state when props change
   useEffect(() => {
     setPosition(initialPosition);
   }, [initialPosition.x, initialPosition.y]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (disabled) return;
     e.stopPropagation();
     onFocus(); 
     setIsDragging(true);
     offset.current = {
-      x: e.clientX - positionRef.current.x,
-      y: e.clientY - positionRef.current.y,
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
     };
-  }, [disabled, onFocus]);
-
-  // Touch event handlers
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (disabled || isDragging) return;
-    e.stopPropagation();
-    e.preventDefault(); // Prevent scrolling while dragging
-    onFocus();
-    setIsDragging(true);
-    const touch = e.touches[0];
-    offset.current = {
-      x: touch.clientX - positionRef.current.x,
-      y: touch.clientY - positionRef.current.y,
-    };
-  }, [disabled, isDragging, onFocus]);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    onDragEnd(positionRef.current);
-  }, [onDragEnd]);
+  };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -181,39 +156,25 @@ const useDraggable = (
       setPosition(newPos);
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging) return;
-      e.preventDefault(); // Prevent scrolling
-      const touch = e.touches[0];
-      const newPos = {
-        x: touch.clientX - offset.current.x,
-        y: touch.clientY - offset.current.y,
-      };
-      setPosition(newPos);
+    const handleMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        onDragEnd(position);
+      }
     };
 
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('touchmove', handleTouchMove, { passive: false });
-      window.addEventListener('mouseup', handleDragEnd);
-      window.addEventListener('touchend', handleDragEnd);
+      window.addEventListener('mouseup', handleMouseUp);
     }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('mouseup', handleDragEnd);
-      window.removeEventListener('touchend', handleDragEnd);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, handleDragEnd]);
+  }, [isDragging, position, onDragEnd]);
 
-  return { 
-    position, 
-    handleMouseDown, 
-    handleTouchStart,
-    isDragging, 
-    style: { left: position.x, top: position.y, zIndex }
-  };
-}
+  return { position, handleMouseDown, isDragging, style: { left: position.x, top: position.y, zIndex } };
+};
 
 const useResizable = (
   initialSize: Size,
@@ -223,34 +184,13 @@ const useResizable = (
   const [isResizing, setIsResizing] = useState(false);
   const startPos = useRef<Position>({ x: 0, y: 0 });
   const startSize = useRef<Size>(initialSize);
-  const sizeRef = useRef(size);
-  
-  // 使用useRef缓存size状态
-  useEffect(() => {
-    sizeRef.current = size;
-  }, [size]);
 
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+  const handleResizeStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsResizing(true);
     startPos.current = { x: e.clientX, y: e.clientY };
-    startSize.current = sizeRef.current;
-  }, []);
-
-  // Touch event handler for resizing
-  const handleResizeTouchStart = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setIsResizing(true);
-    const touch = e.touches[0];
-    startPos.current = { x: touch.clientX, y: touch.clientY };
-    startSize.current = sizeRef.current;
-  }, []);
-
-  const handleResizeEnd = useCallback(() => {
-    setIsResizing(false);
-    onResizeEnd(sizeRef.current);
-  }, [onResizeEnd]);
+    startSize.current = size;
+  };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -264,34 +204,24 @@ const useResizable = (
       });
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isResizing) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      const deltaX = touch.clientX - startPos.current.x;
-      const deltaY = touch.clientY - startPos.current.y;
-      
-      setSize({
-        width: Math.max(100, startSize.current.width + deltaX),
-        height: Math.max(100, startSize.current.height + deltaY),
-      });
+    const handleMouseUp = () => {
+      if (isResizing) {
+        setIsResizing(false);
+        onResizeEnd(size);
+      }
     };
 
     if (isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('touchmove', handleTouchMove, { passive: false });
-      window.addEventListener('mouseup', handleResizeEnd);
-      window.addEventListener('touchend', handleResizeEnd);
+      window.addEventListener('mouseup', handleMouseUp);
     }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('mouseup', handleResizeEnd);
-      window.removeEventListener('touchend', handleResizeEnd);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, handleResizeEnd]);
+  }, [isResizing, size, onResizeEnd]);
 
-  return { size, handleResizeStart, handleResizeTouchStart, isResizing };
+  return { size, handleResizeStart, isResizing };
 };
 
 // Hook for scaling font size (used by Stickers)
@@ -316,51 +246,6 @@ const useScalable = (
         startFontSize.current = fontSize;
     };
 
-    // Touch event handler for scaling
-    const handleScaleTouchStart = (e: React.TouchEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-        setIsScaling(true);
-        const touch = e.touches[0];
-        startY.current = touch.clientY;
-        startFontSize.current = fontSize;
-    };
-
-    // Support for pinch-to-zoom with two fingers
-    const handlePinchStart = (e: React.TouchEvent) => {
-        if (e.touches.length === 2) {
-            e.stopPropagation();
-            e.preventDefault();
-            setIsScaling(true);
-            startFontSize.current = fontSize;
-        }
-    };
-
-    const handlePinchMove = (e: React.TouchEvent) => {
-        if (!isScaling || e.touches.length !== 2) return;
-        e.preventDefault();
-        
-        // Calculate distance between two touches
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const distance = Math.sqrt(
-            Math.pow(touch2.clientX - touch1.clientX, 2) +
-            Math.pow(touch2.clientY - touch1.clientY, 2)
-        );
-        
-        // Store initial distance if not already stored
-        if (!initialPinchDistance.current) {
-            initialPinchDistance.current = distance;
-        }
-        
-        // Calculate scale factor based on pinch distance
-        const scaleFactor = distance / initialPinchDistance.current;
-        const newSize = Math.max(12, Math.min(200, startFontSize.current * scaleFactor));
-        setFontSize(newSize);
-    };
-
-    const initialPinchDistance = useRef(0);
-
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (!isScaling) return;
@@ -371,54 +256,24 @@ const useScalable = (
             setFontSize(newSize);
         };
 
-        const handleTouchMove = (e: TouchEvent) => {
-            if (!isScaling || e.touches.length !== 1) return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            const deltaY = touch.clientY - startY.current;
-            const scaleFactor = 1 + (deltaY * 0.005);
-            const newSize = Math.max(12, Math.min(200, startFontSize.current * scaleFactor));
-            setFontSize(newSize);
-        };
-
         const handleMouseUp = () => {
             if (isScaling) {
                 setIsScaling(false);
-                initialPinchDistance.current = 0;
-                onScaleEnd(fontSize);
-            }
-        };
-
-        const handleTouchEnd = () => {
-            if (isScaling) {
-                setIsScaling(false);
-                initialPinchDistance.current = 0;
                 onScaleEnd(fontSize);
             }
         };
 
         if (isScaling) {
             window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('touchmove', handleTouchMove, { passive: false });
             window.addEventListener('mouseup', handleMouseUp);
-            window.addEventListener('touchend', handleTouchEnd);
         }
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('mouseup', handleMouseUp);
-            window.removeEventListener('touchend', handleTouchEnd);
         };
     }, [isScaling, fontSize, onScaleEnd]);
 
-    return { 
-        fontSize, 
-        handleScaleStart, 
-        handleScaleTouchStart,
-        handlePinchStart,
-        handlePinchMove,
-        isScaling 
-    };
+    return { fontSize, handleScaleStart, isScaling };
 };
 
 const useRotatable = (
@@ -430,14 +285,8 @@ const useRotatable = (
   const elementRef = useRef<HTMLDivElement>(null);
   const startAngleRef = useRef(0);
   const startRotationRef = useRef(0);
-  const rotationRef = useRef(rotation);
-  
-  // 使用useRef缓存rotation状态
-  useEffect(() => {
-    rotationRef.current = rotation;
-  }, [rotation]);
 
-  const handleRotateStart = useCallback((e: React.MouseEvent) => {
+  const handleRotateStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     if (!elementRef.current) return;
@@ -448,29 +297,8 @@ const useRotatable = (
     const centerY = rect.top + rect.height / 2;
     
     startAngleRef.current = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-    startRotationRef.current = rotationRef.current;
-  }, []);
-
-  // Touch event handler for rotation
-  const handleRotateTouchStart = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!elementRef.current) return;
-    
-    setIsRotating(true);
-    const rect = elementRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const touch = e.touches[0];
-    
-    startAngleRef.current = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
-    startRotationRef.current = rotationRef.current;
-  }, []);
-
-  const handleRotateEnd = useCallback(() => {
-    setIsRotating(false);
-    onRotateEnd(rotationRef.current);
-  }, [onRotateEnd]);
+    startRotationRef.current = rotation;
+  };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -487,43 +315,24 @@ const useRotatable = (
       setRotation(startRotationRef.current + degDelta);
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isRotating || !elementRef.current) return;
-      e.preventDefault();
-      
-      const rect = elementRef.current.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const touch = e.touches[0];
-      
-      const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
-      const angleDelta = currentAngle - startAngleRef.current;
-      const degDelta = angleDelta * (180 / Math.PI);
-      
-      setRotation(startRotationRef.current + degDelta);
+    const handleMouseUp = () => {
+      if (isRotating) {
+        setIsRotating(false);
+        onRotateEnd(rotation);
+      }
     };
 
     if (isRotating) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('touchmove', handleTouchMove, { passive: false });
-      window.addEventListener('mouseup', handleRotateEnd);
-      window.addEventListener('touchend', handleRotateEnd);
+      window.addEventListener('mouseup', handleMouseUp);
     }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('mouseup', handleRotateEnd);
-      window.removeEventListener('touchend', handleRotateEnd);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isRotating, handleRotateEnd]);
+  }, [isRotating, rotation, onRotateEnd]);
 
-  return { 
-    rotation, 
-    handleRotateStart, 
-    handleRotateTouchStart,
-    isRotating, 
-    elementRef 
-  };
+  return { rotation, handleRotateStart, isRotating, elementRef };
 };
 
 // --- Components ---
@@ -544,13 +353,8 @@ const Sidebar = ({
   currentFontSize, 
   setBgColor,
   shadowEnabled,
-  onSaveAsDefault,
-  sidebarVisible,
-  setSidebarVisible
+  onSaveAsDefault
 }: any) => {
-  // 响应式检测
-  const isSmallScreen = window.innerWidth < 768; // 手机尺寸
-  const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024; // iPad尺寸
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -615,26 +419,11 @@ const Sidebar = ({
     '🕯️', '🗝️', '💌', '📮'
   ];
 
-  // 触摸友好的按钮样式 - 确保按钮至少44x44px以符合触屏标准
-  const touchFriendlyButton = "min-w-[44px] min-h-[44px] active:scale-95 transition-transform duration-100 touch-manipulation focus:outline-none focus:ring-2 focus:ring-white/50";
-  
   return (
     <div 
-      className={`h-full w-[110px] sm:w-[90px] md:w-[110px] flex flex-col items-center py-6 gap-6 relative z-[10000] border-r border-white/20 shadow-xl transform transition-transform duration-300 ease-in-out ${sidebarVisible ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative top-0 left-0`}
+      className="h-full w-[110px] flex flex-col items-center py-6 gap-6 relative z-[10000] border-r border-white/20 shadow-xl"
       style={{ backgroundColor: COLORS.SIDEBAR }}
     >
-      {/* Close button for mobile */}
-      <button
-        className={`md:hidden absolute top-2 right-2 text-gray-700 p-2 rounded-full hover:bg-white/20 ${touchFriendlyButton}`}
-        onClick={() => setSidebarVisible(false)}
-        aria-label="Close sidebar"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-      
       {/* Top Color Widget (Paper Colors) */}
       <div className="bg-[#F0F4F8] p-1.5 rounded-lg shadow-md w-20 flex flex-col gap-1 relative">
         <div className="grid grid-cols-2 gap-1.5">
@@ -642,18 +431,14 @@ const Sidebar = ({
              <div 
                 key={c}
                 onClick={() => setPaperColor(c)}
-                className="w-full aspect-square rounded-[3px] cursor-pointer hover:opacity-80 transition-opacity border border-black/5 active:scale-90 transform-gpu"
+                className="w-full aspect-square rounded-[3px] cursor-pointer hover:opacity-80 transition-opacity border border-black/5"
                 style={{ backgroundColor: c }}
-                role="button"
-                tabIndex={0}
              />
           ))}
         </div>
         <div 
             onClick={() => setActiveTool(activeTool === 'PAPER_EXT' ? 'NONE' : 'PAPER_EXT')}
-            className={`w-full h-5 bg-[#4A90E2] rounded-[3px] flex items-center justify-center cursor-pointer hover:bg-[#357ABD] transition-colors ${touchFriendlyButton}`}
-            role="button"
-            tabIndex={0}
+            className="w-full h-5 bg-[#4A90E2] rounded-[3px] flex items-center justify-center cursor-pointer hover:bg-[#357ABD] transition-colors"
         >
             <MoreIcon />
         </div>
@@ -664,13 +449,11 @@ const Sidebar = ({
                 <div className="grid grid-cols-4 gap-2">
                     {extendedColors.map(c => (
                         <div 
-                 key={c}
-                 onClick={() => { setPaperColor(c); setActiveTool('NONE'); }}
-                 className={`w-10 h-10 rounded-full border border-gray-200 cursor-pointer hover:scale-110 transition-transform active:scale-95 ${touchFriendlyButton}`}
-                 style={{ backgroundColor: c }}
-                 role="button"
-                 tabIndex={0}
-             />
+                            key={c}
+                            onClick={() => { setPaperColor(c); setActiveTool('NONE'); }}
+                            className="w-8 h-8 rounded-full border border-gray-200 cursor-pointer hover:scale-110 transition-transform"
+                            style={{ backgroundColor: c }}
+                        />
                     ))}
                 </div>
             </div>
@@ -678,15 +461,12 @@ const Sidebar = ({
       </div>
 
       {/* Tools */}
-      <div className="flex flex-col gap-4 md:gap-6 w-full items-center mt-4 relative">
+      <div className="flex flex-col gap-6 w-full items-center mt-4 relative">
         
         {/* Font Settings */}
         <button 
-          onClick={() => { 
-            setActiveTool(activeTool === 'FONT' ? 'NONE' : 'FONT'); 
-            if (isSmallScreen && activeTool !== 'FONT') setSidebarVisible(false);
-          }}
-          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${activeTool === 'FONT' ? 'ring-2 ring-[#25586B] scale-110' : ''} ${touchFriendlyButton}`}
+          onClick={() => setActiveTool(activeTool === 'FONT' ? 'NONE' : 'FONT')}
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${activeTool === 'FONT' ? 'ring-2 ring-[#25586B] scale-110' : ''}`}
           style={{ backgroundColor: COLORS.BTN_GLASS }}
           title="Change Font & Size"
         >
@@ -707,7 +487,6 @@ const Sidebar = ({
                         value={currentFontSize} 
                         onChange={(e) => onChangeFontSize(Number(e.target.value))}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#25586B]"
-                        style={{ cursor: 'pointer' }}
                     />
                 </div>
 
@@ -719,7 +498,7 @@ const Sidebar = ({
                         <button
                             key={font.name}
                             onClick={() => { onChangeFont(font.name); }}
-                            className={`text-left px-3 py-3 rounded hover:bg-gray-100 transition-colors text-lg ${currentFont === font.name ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${touchFriendlyButton}`}
+                            className={`text-left px-3 py-2 rounded hover:bg-gray-100 transition-colors text-lg ${currentFont === font.name ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
                             style={{ fontFamily: font.name }}
                         >
                             {font.label}
@@ -732,7 +511,7 @@ const Sidebar = ({
         {/* Image Upload */}
         <button 
           onClick={() => fileInputRef.current?.click()}
-          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${touchFriendlyButton}`}
+          className="w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm"
           style={{ backgroundColor: COLORS.BTN_GLASS }}
           title="Add Photo"
         >
@@ -743,7 +522,7 @@ const Sidebar = ({
         {/* Stickers & Text */}
         <button 
           onClick={() => setActiveTool(activeTool === 'STICKER' ? 'NONE' : 'STICKER')}
-          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${activeTool === 'STICKER' ? 'ring-2 ring-[#25586B] scale-110' : ''} ${touchFriendlyButton}`}
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${activeTool === 'STICKER' ? 'ring-2 ring-[#25586B] scale-110' : ''}`}
           style={{ backgroundColor: COLORS.BTN_GLASS }}
           title="Add Sticker or Text"
         >
@@ -753,11 +532,11 @@ const Sidebar = ({
          {activeTool === 'STICKER' && (
              <div className="absolute left-[100px] top-[140px] bg-white p-3 rounded-xl shadow-xl animate-in fade-in slide-in-from-left-2 z-[60] w-56">
                 <button
-                        onClick={() => { onAddSticker('text'); setActiveTool('NONE'); }}
-                        className={`w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg mb-4 font-semibold transition-colors ${touchFriendlyButton}`}
-                    >
-                        <PlusIcon /> Add Text
-                    </button>
+                    onClick={() => { onAddSticker('text'); setActiveTool('NONE'); }}
+                    className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg mb-4 font-semibold transition-colors"
+                >
+                    <PlusIcon /> Add Text
+                </button>
                 
                 <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Stickers</p>
                 <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
@@ -765,7 +544,7 @@ const Sidebar = ({
                         <button
                             key={emoji}
                             onClick={() => { onAddSticker('emoji', emoji); setActiveTool('NONE'); }}
-                            className={`text-2xl hover:scale-125 transition-transform p-3 ${touchFriendlyButton}`}
+                            className="text-2xl hover:scale-125 transition-transform p-1"
                         >
                             {emoji}
                         </button>
@@ -778,7 +557,7 @@ const Sidebar = ({
         {/* Background Color */}
         <button 
           onClick={() => setActiveTool(activeTool === 'BG' ? 'NONE' : 'BG')}
-          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${activeTool === 'BG' ? 'ring-2 ring-[#25586B] scale-110' : ''} ${touchFriendlyButton}`}
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${activeTool === 'BG' ? 'ring-2 ring-[#25586B] scale-110' : ''}`}
           style={{ backgroundColor: COLORS.BTN_GLASS }}
           title="Change Board Color"
         >
@@ -788,7 +567,7 @@ const Sidebar = ({
         {/* Shadow Toggle */}
         <button 
           onClick={onToggleShadow}
-          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${shadowEnabled ? 'bg-yellow-100/50 ring-2 ring-yellow-400/50' : ''} ${touchFriendlyButton}`}
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm backdrop-blur-sm ${shadowEnabled ? 'bg-yellow-100/50 ring-2 ring-yellow-400/50' : ''}`}
           style={{ backgroundColor: shadowEnabled ? 'rgba(255, 240, 200, 0.4)' : COLORS.BTN_GLASS }}
           title="Toggle Shadow"
         >
@@ -798,12 +577,12 @@ const Sidebar = ({
         {activeTool === 'BG' && (
             <div className="absolute left-[100px] top-[240px] bg-white p-3 rounded-xl shadow-xl animate-in fade-in slide-in-from-left-2 z-[60] w-40">
                <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Board Color</p>
-               <div className="grid grid-cols-2 gap-3">
+               <div className="grid grid-cols-2 gap-2">
                  {bgColors.map(c => (
                    <div 
                      key={c}
                      onClick={() => { setBgColor(c); setActiveTool('NONE'); }} 
-                     className={`w-12 h-12 rounded-full border border-gray-200 cursor-pointer hover:scale-110 transition-transform shadow-sm ${touchFriendlyButton}`}
+                     className="w-8 h-8 rounded-full border border-gray-200 cursor-pointer hover:scale-110 transition-transform shadow-sm"
                      style={{ backgroundColor: c }}
                    />
                  ))}
@@ -817,7 +596,7 @@ const Sidebar = ({
 
       <button
         onClick={onSaveAsDefault}
-        className={`w-16 h-16 rounded-full bg-[#4A6C85] text-white flex items-center justify-center transition-all hover:bg-[#3A5C75] shadow-lg mb-6 hover:scale-105 ${touchFriendlyButton}`}
+        className="w-14 h-14 rounded-full bg-[#4A6C85] text-white flex items-center justify-center transition-all hover:bg-[#3A5C75] shadow-lg mb-6 hover:scale-105"
         title="保存为默认样式"
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -830,7 +609,7 @@ const Sidebar = ({
       {/* Download */}
       <button 
         onClick={onExport}
-        className={`w-16 h-16 rounded-full bg-[#4A6C85] text-white flex items-center justify-center transition-all hover:bg-[#3A5C75] shadow-lg mb-6 hover:scale-105 ${touchFriendlyButton}`}
+        className="w-14 h-14 rounded-full bg-[#4A6C85] text-white flex items-center justify-center transition-all hover:bg-[#3A5C75] shadow-lg mb-6 hover:scale-105"
       >
         <DownloadIcon />
       </button>
@@ -863,51 +642,17 @@ const LetterPaper = ({
     state.size,
     (newSize) => setState({ ...state, size: newSize })
   );
-  
-  // 响应式调整纸张尺寸
-  const adjustPaperSize = () => {
-    // 获取屏幕宽度
-    const screenWidth = window.innerWidth;
-    
-    // 根据屏幕宽度调整纸张尺寸
-    if (screenWidth < 768) { // 手机设备
-      return { width: 280, height: 350 };
-    } else if (screenWidth < 1024) { // iPad设备
-      return { width: 400, height: 500 };
-    }
-    return size; // 保持原尺寸
-  };
-  
-  const responsiveSize = adjustPaperSize();
-  
-  // 响应式调整字体大小
-  const responsiveFontSize = () => {
-    const screenWidth = window.innerWidth;
-    if (screenWidth < 768) {
-      return Math.min(state.fontSize || 24, 20);
-    } else if (screenWidth < 1024) {
-      return Math.min(state.fontSize || 24, 22);
-    }
-    return state.fontSize || 24;
-  };
-  
-  // 增加双击放大功能（移动端常用）
-  const handleDoubleClick = () => {
-    const newSize = (state.fontSize || 24) * 1.2;
-    setState({ ...state, fontSize: newSize });
-  };
 
   return (
     <div 
-      className={`absolute transition-transform duration-200 ease-out ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} group touch-manipulation active:scale-98 transition-transform duration-100`}
+      className={`absolute transition-transform duration-200 ease-out ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} group`}
       style={{
         ...style,
-        width: responsiveSize.width,
-        height: responsiveSize.height,
+        width: size.width,
+        height: size.height,
         transform: `rotate(${state.rotation}deg)`,
       }}
       onMouseDown={handleMouseDown}
-      onDoubleClick={handleDoubleClick}
     >
       <div 
         className="w-full h-full relative z-10"
@@ -918,20 +663,19 @@ const LetterPaper = ({
       >
         <div className="absolute inset-0 opacity-10 bg-[url('/cream-paper.png')] pointer-events-none mix-blend-multiply"></div>
 
-        <div className="w-full h-full p-4 sm:p-6 md:p-8 relative z-10">
+        <div className="w-full h-full p-8 sm:p-12 relative z-10">
           <textarea
             className="w-full h-full bg-transparent resize-none outline-none border-none leading-loose text-gray-800 opacity-90"
             style={{ 
                 fontFamily: state.font || 'Caveat',
-                fontSize: `${responsiveFontSize()}px`
+                fontSize: `${state.fontSize || 24}px`
             }}
             value={state.text}
             onChange={(e) => setState({...state, text: e.target.value})}
             placeholder="Write something..."
             spellCheck={false}
             onMouseDown={(e) => { e.stopPropagation(); onFocus(); }} 
-            onFocus={onFocus}
-            onDoubleClick={handleDoubleClick} 
+            onFocus={onFocus} 
           />
         </div>
 
@@ -959,18 +703,6 @@ const PhotoItem: React.FC<{
   onFocus,
   isFocused
 }) => {
-  // 响应式调整图片尺寸
-  const getResponsiveImageSize = () => {
-    const screenWidth = window.innerWidth;
-    if (screenWidth < 768) { // 手机设备
-      return { width: Math.min(image.width, 150), height: Math.min(image.height, 150 * (image.height / image.width)) };
-    } else if (screenWidth < 1024) { // iPad设备
-      return { width: Math.min(image.width, 200), height: Math.min(image.height, 200 * (image.height / image.width)) };
-    }
-    return { width: image.width, height: image.height };
-  };
-  
-  const responsiveSize = getResponsiveImageSize();
   const { rotation, handleRotateStart, isRotating, elementRef } = useRotatable(
     image.rotation,
     (deg) => updateImage(image.id, { rotation: deg })
@@ -989,20 +721,10 @@ const PhotoItem: React.FC<{
     (newSize) => updateImage(image.id, { width: newSize.width, height: newSize.height })
   );
 
-  // 处理触摸事件，增强触屏支持
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    handleMouseDown(e as unknown as React.MouseEvent);
-    onFocus();
-  };
-  
-  // 优化的触摸反馈类
-  const touchFeedbackClass = "active:scale-95 transition-transform duration-100 touch-manipulation focus:outline-none focus:ring-2 focus:ring-blue-300";
-  
   return (
     <div
       ref={elementRef}
-      className={`absolute group transition-transform duration-75 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none ${touchFeedbackClass}`}
+      className={`absolute group transition-transform duration-75 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
       style={{
         ...style,
         width: 'auto',
@@ -1010,7 +732,6 @@ const PhotoItem: React.FC<{
         zIndex: isDragging || isRotating ? 999 : image.zIndex,
       }}
       onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
     >
       <div 
         className={`bg-white p-3 pb-3 shadow-xl hover:shadow-2xl transition-all duration-300 relative ${isFocused ? 'ring-2 ring-blue-400 ring-offset-4 ring-offset-transparent border-blue-400 border-dashed border' : ''}`}
@@ -1019,7 +740,7 @@ const PhotoItem: React.FC<{
         }}
       >
         <div 
-            className={`absolute -top-12 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center cursor-ew-resize opacity-0 group-hover:opacity-100 transition-all z-30 text-gray-600 hover:text-blue-500 hover:scale-110 ${touchFeedbackClass}`}
+            className="absolute -top-12 left-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 text-gray-600 hover:text-blue-500 hover:scale-110"
             onMouseDown={handleRotateStart}
         >
             <RotateIcon />
@@ -1027,7 +748,7 @@ const PhotoItem: React.FC<{
         </div>
 
         <button 
-            className={`absolute -top-4 -right-4 bg-white text-red-500 border border-gray-200 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-md z-30 min-w-10 min-h-10 flex items-center justify-center ${touchFeedbackClass}`}
+            className="absolute -top-3 -right-3 bg-white text-red-500 border border-gray-200 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-sm z-30"
             onClick={(e) => { e.stopPropagation(); onRemove(image.id); }}
         >
             <TrashIcon />
@@ -1035,7 +756,7 @@ const PhotoItem: React.FC<{
 
         <div 
             className="bg-gray-100 relative overflow-hidden border border-black/5"
-            style={{ width: responsiveSize.width, height: responsiveSize.height }}
+            style={{ width: size.width, height: size.height }}
         >
           <img 
             src={image.src} 
@@ -1065,10 +786,10 @@ const PhotoItem: React.FC<{
         </div>
 
         <div 
-          className={`absolute bottom-2 right-2 p-3 cursor-nwse-resize opacity-0 group-hover:opacity-100 z-50 transition-all ${touchFeedbackClass}`}
+          className="absolute bottom-1 right-1 p-2 cursor-nwse-resize opacity-0 group-hover:opacity-100 z-50 transition-opacity"
           onMouseDown={handleResizeStart}
         >
-          <div className="w-5 h-5 border-r-2 border-b-2 border-gray-500 bg-white/50 rounded-sm"></div>
+          <div className="w-3 h-3 border-r-2 border-b-2 border-gray-400"></div>
         </div>
 
       </div>
@@ -1083,21 +804,7 @@ const StickerComponent: React.FC<{
   onFocus: () => void;
   isFocused: boolean;
 }> = ({ sticker, updateSticker, onRemove, onFocus, isFocused }) => {
-  const touchFeedbackClass = "active:scale-95 transition-transform duration-100 touch-manipulation focus:outline-none focus:ring-2 focus:ring-blue-300";
   const [showFontMenu, setShowFontMenu] = useState(false);
-  
-  // 响应式调整贴纸字体大小
-  const getResponsiveFontSize = () => {
-    const screenWidth = window.innerWidth;
-    const baseSize = sticker.fontSize || (sticker.type === 'emoji' ? 64 : 32);
-    
-    if (screenWidth < 768) { // 手机设备
-      return Math.min(baseSize, sticker.type === 'emoji' ? 48 : 24);
-    } else if (screenWidth < 1024) { // iPad设备
-      return Math.min(baseSize, sticker.type === 'emoji' ? 56 : 28);
-    }
-    return baseSize;
-  };
     
   const { rotation, handleRotateStart, isRotating, elementRef } = useRotatable(
     sticker.rotation,
@@ -1114,45 +821,30 @@ const StickerComponent: React.FC<{
 
   // Use scalable hook to update fontSize when resizing
   const { fontSize: dynamicFontSize, handleScaleStart, isScaling } = useScalable(
-      getResponsiveFontSize(),
+      sticker.fontSize || (sticker.type === 'emoji' ? 64 : 32),
       (newSize) => updateSticker(sticker.id, { fontSize: newSize })
   );
-  
-  // 处理触摸事件，增强触屏支持
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    handleMouseDown(e as unknown as React.MouseEvent);
-    onFocus();
-  };
-  
-  // 增加双击放大功能
-  const handleDoubleClick = () => {
-    const currentSize = sticker.fontSize || (sticker.type === 'emoji' ? 64 : 32);
-    updateSticker(sticker.id, { fontSize: currentSize * 1.2 });
-  };
 
   return (
     <div
       ref={elementRef}
-      className={`absolute group ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none ${touchFeedbackClass}`}
+      className={`absolute group ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
       style={{
         ...style,
         transform: `rotate(${rotation}deg) scale(${sticker.scale})`,
-        zIndex: isDragging || isRotating || isScaling ? 999 : sticker.zIndex,
+        zIndex: isDragging || isRotating ? 999 : sticker.zIndex,
       }}
       onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
-      onDoubleClick={handleDoubleClick}
     >
         <div className={`relative p-2 ${isFocused ? 'border-2 border-dashed border-[#4A90E2] rounded-lg bg-white/10' : ''}`}>
              <div 
-                className={`absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center cursor-ew-resize opacity-0 group-hover:opacity-100 transition-all z-30 text-gray-600 ${touchFeedbackClass}`}
+                className="absolute -top-10 left-1/2 -translate-x-1/2 w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 text-gray-600"
                 onMouseDown={handleRotateStart}
             >
                 <RotateIcon />
             </div>
              <button 
-                className={`absolute -top-4 -right-4 bg-white text-red-500 border border-gray-200 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all shadow-md z-30 min-w-10 min-h-10 flex items-center justify-center ${touchFeedbackClass}`}
+                className="absolute -top-4 -right-4 bg-white text-red-500 border border-gray-200 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-sm z-30"
                 onClick={(e) => { e.stopPropagation(); onRemove(sticker.id); }}
             >
                 <TrashIcon />
@@ -1161,7 +853,7 @@ const StickerComponent: React.FC<{
             {sticker.type === 'text' && (
                 <>
                     <button 
-                        className={`absolute -top-4 -left-4 bg-white text-gray-700 border border-gray-200 rounded-full w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md z-30 hover:bg-gray-50 hover:scale-110 ${touchFeedbackClass}`}
+                        className="absolute -top-4 -left-4 bg-white text-gray-700 border border-gray-200 rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm z-30 hover:bg-gray-50 hover:scale-110"
                         onClick={(e) => { 
                             e.stopPropagation(); 
                             setShowFontMenu(!showFontMenu);
@@ -1182,7 +874,7 @@ const StickerComponent: React.FC<{
                                         updateSticker(sticker.id, { font: font.name });
                                         setShowFontMenu(false);
                                     }}
-                                    className={`w-full text-left px-3 py-2.5 rounded-md text-sm transition-colors ${sticker.font === font.name ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'} ${touchFeedbackClass}`}
+                                    className={`w-full text-left px-2 py-1.5 rounded-md text-sm transition-colors ${sticker.font === font.name ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'}`}
                                     style={{ fontFamily: font.name }}
                                 >
                                     {font.label}
@@ -1222,10 +914,10 @@ const StickerComponent: React.FC<{
 
             {/* Resize handle for sticker (scales font size) */}
             <div 
-                className={`absolute -bottom-1.5 -right-1.5 w-6 h-6 bg-white border border-gray-300 rounded-full shadow cursor-nwse-resize opacity-0 group-hover:opacity-100 z-50 flex items-center justify-center ${touchFeedbackClass}`}
+                className="absolute -bottom-1 -right-1 w-4 h-4 bg-white border border-gray-300 rounded-full shadow cursor-nwse-resize opacity-0 group-hover:opacity-100 z-50 flex items-center justify-center"
                 onMouseDown={handleScaleStart}
             >
-                <div className="w-2.5 h-2.5 bg-[#4A90E2] rounded-full"></div>
+                <div className="w-1.5 h-1.5 bg-[#4A90E2] rounded-full"></div>
             </div>
         </div>
     </div>
@@ -1543,36 +1235,19 @@ export default function App() {
     }
   };
 
-  // 控制侧边栏在移动设备上的显示状态
-  const [sidebarVisible, setSidebarVisible] = useState(true);
-  
   return (
     <div 
-      className="w-screen h-screen overflow-hidden flex flex-col sm:flex-row items-center justify-center p-4"
+      className="w-screen h-screen overflow-hidden flex items-center justify-center p-4"
       style={{ backgroundColor: '#181E23' }} 
     >
       <div 
-        className="w-full h-full flex flex-col sm:flex-row relative overflow-hidden shadow-2xl"
+        className="w-full h-full flex relative overflow-hidden shadow-2xl"
         style={{ 
             backgroundColor: COLORS.FRAME,
-            border: `8px solid ${COLORS.FRAME}`,
-            borderRadius: '8px'
+            border: `16px solid ${COLORS.FRAME}`,
+            borderRadius: '12px'
         }}
       >
-        {/* 移动端侧边栏切换按钮 */}
-        <button 
-          className="absolute top-4 right-4 z-50 md:hidden bg-white/80 p-2 rounded-full shadow-lg"
-          onClick={() => setSidebarVisible(!sidebarVisible)}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={COLORS.FRAME} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {sidebarVisible ? (
-              <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
-            ) : (
-              <><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></>
-            )}
-          </svg>
-        </button>
-        
         <Sidebar 
           activeTool={activeTool} 
           setActiveTool={setActiveTool}
@@ -1597,7 +1272,7 @@ export default function App() {
           className="flex-1 h-full relative overflow-hidden transition-colors duration-500"
           style={{ 
               backgroundColor: bgColor,
-              border: '16px solid #4A6D7C', 
+              border: '24px solid #4A6D7C', 
               boxShadow: 'inset 3px 3px 22px 6px rgba(0,0,0,0.6), inset 0 0 50px 10px rgba(0,0,0,0.3)'
           }}
           onClick={() => { setActiveTool('NONE'); setFocusedId('paper'); }}
