@@ -34,7 +34,7 @@ const StickerIcon = () => (
 const BackgroundIcon = () => (
   <div style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
     <img 
-      src="/assets/bgcolor.png" 
+      src="assets/bgcolor.png" 
       alt="背景颜色" 
       width="28" 
       height="28" 
