@@ -1241,7 +1241,7 @@ export default function App() {
       style={{ backgroundColor: '#181E23' }} 
     >
       <div 
-        className="w-full h-full max-w-[1500px] max-h-[900px] flex relative overflow-hidden shadow-2xl"
+        className="w-full h-full flex relative overflow-hidden shadow-2xl"
         style={{ 
             backgroundColor: COLORS.FRAME,
             border: `16px solid ${COLORS.FRAME}`,
