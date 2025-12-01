@@ -1237,7 +1237,7 @@ export default function App() {
 
   return (
     <div 
-      className="w-screen h-screen overflow-hidden flex items-center justify-center"
+      className="w-screen h-screen overflow-hidden flex items-center justify-center p-4"
       style={{ backgroundColor: '#181E23' }} 
     >
       <div 
